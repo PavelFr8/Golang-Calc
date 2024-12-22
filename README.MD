@@ -58,6 +58,7 @@ curl --location "http://localhost:8080/api/v1/calculate" --header "Content-Type:
 ### Требования
 
 - Go версии 1.23.0 или выше
+- Установленный zap
 
 ### Установка и запуск
 
@@ -68,13 +69,20 @@ curl --location "http://localhost:8080/api/v1/calculate" --header "Content-Type:
    cd Golang-Calc
    ```
 
-2. Запустите сервис:
+2. Установите zap:
+
+   ```bash
+   go get github.com/gorilla/mux
+   go get go.uber.org/zap
+   ```
+
+3. Запустите сервис:
 
    ```bash
    go run ./cmd/main.go
    ```
 
-3. Сервис будет запущен на `http://localhost:8080`.
+4. Сервис будет запущен на `http://localhost:8080`.
 
 ### Переменные окружения
 
