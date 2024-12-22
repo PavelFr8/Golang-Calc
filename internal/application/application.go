@@ -40,6 +40,7 @@ func setupLogger() *zap.Logger {
 	logger, err := config.Build()
 	if err != nil {
 		fmt.Printf("Ошибка настройки логгера: %v\n", err)
+		os.Exit(1) // Завершение программы
 	}
 	return logger
 }
@@ -57,7 +58,7 @@ type Request struct {
 
 type Response struct {
 	Result string `json:"result,,omitempty"`
-	Error  string `json:"error,,omitempty"`
+	Error  string `json:"error,omitempty"`
 }
 
 func loggingMiddleware(logger *zap.Logger) mux.MiddlewareFunc {
