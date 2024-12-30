@@ -106,8 +106,8 @@ func calculate(str string) (float64, error) {
 				return 0, ErrInvalidExpression
 			}
 
-			n1 := stack[0]
-			n2 := stack[1]
+			n1 := stack[len(stack)-2]
+			n2 := stack[len(stack)-1]
 			stack = stack[:len(stack)-2]
 
 			result, err := do_calculation(n1, n2, elem)

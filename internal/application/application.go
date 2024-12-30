@@ -57,7 +57,7 @@ type Request struct {
 }
 
 type Response struct {
-	Result string `json:"result,,omitempty"`
+	Result string `json:"result,omitempty"`
 	Error  string `json:"error,omitempty"`
 }
 
@@ -79,7 +79,7 @@ func loggingMiddleware(logger *zap.Logger) mux.MiddlewareFunc {
 	}
 }
 
-func CalcHandler(logger *zap.Logger) http.HandlerFunc {
+func CalcHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Принимаем только POST!
 		if r.Method != http.MethodPost {
@@ -130,7 +130,7 @@ func (a *Application) RunServer() error {
 	r.Use(loggingMiddleware(a.logger)) // Добавляем middleware для логирования
 
 	// Принимаем только POST запросы!
-	r.HandleFunc("/api/v1/calculate", CalcHandler(a.logger)).Methods("POST")
+	r.HandleFunc("/api/v1/calculate", CalcHandler()).Methods("POST")
 
 	a.logger.Info("Сервер запущен", zap.String("address", fmt.Sprintf(":%s", a.config.Addr))) // Логируем запуск сервера
 	return http.ListenAndServe(":"+a.config.Addr, r)
