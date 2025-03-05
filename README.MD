@@ -31,13 +31,13 @@
   Для Linux/Mac:
 
   ```bash
-  cp template.env .env
+  cp example.env .env
   ```
 
   Для Windows:
 
   ```bash
-  copy template.env .env
+  copy example.env .env
   ```
 
 4. Запустите агент:
