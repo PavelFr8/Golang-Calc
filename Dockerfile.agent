@@ -1,33 +1,10 @@
-# Используем официальный образ Go
-FROM golang:1.23 AS builder
-
-# Устанавливаем рабочую директорию
+FROM golang:alpine AS builder
 WORKDIR /app
-
-# Копируем go.mod и go.sum
-COPY go.mod go.sum ./
-
-# Загружаем зависимости
+COPY go.mod ./
 RUN go mod download
-
-# Копируем все остальные файлы
 COPY . .
-
-# Собираем агента
-RUN go build -o agent ./cmd/agent
-
-# Используем минимальный образ для запуска
+RUN CGO_ENABLED=0 GOOS=linux go build -a -o agent ./cmd/agent/main.go
 FROM alpine:latest
-
-# Копируем собранный бинарник из предыдущего шага
-COPY --from=builder /app/agent /usr/local/bin/agent
-
-# Устанавливаем переменные окружения
-ENV TIME_ADDITION_MS=100
-ENV TIME_SUBTRACTION_MS=100
-ENV TIME_MULTIPLICATIONS_MS=100
-ENV TIME_DIVISIONS_MS=100
-ENV COMPUTING_POWER=5
-
-# Запускаем агента
-CMD ["agent"]
+WORKDIR /app
+COPY --from=builder /app/agent .
+ENTRYPOINT ["./agent"]
