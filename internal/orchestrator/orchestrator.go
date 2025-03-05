@@ -24,6 +24,9 @@ func New() *Orchestrator {
 func (o *Orchestrator) RunServer() error {
 	r := mux.NewRouter()
 
+	// Добавляем мидлварь для логирования
+	r.Use(logger.LoggingMiddleware(o.logger)) 
+
 	// Регистрация маршрутов
 	handlers.RegisterExpressionHandlers(r)
 	handlers.RegisterTaskHandlers(r)

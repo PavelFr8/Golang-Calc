@@ -5,9 +5,49 @@ import (
 	"go/parser"
 	"go/token"
 	"strconv"
-	"time"
 )
 
+func parseAST(expression *Expression, node ast.Expr) float64 {
+	switch n := node.(type) {
+	case *ast.BinaryExpr:
+		// Рекурсивно вычисляем операнды
+		left := parseAST(expression, n.X)
+		right := parseAST(expression, n.Y)
+
+		// Генерируем уникальный ID для задачи
+		Mutex.Lock()
+		TaskCounter++
+		taskID := TaskCounter
+		
+
+		// Создание задачи
+		task := Task{
+			ID:            taskID,
+			Arg1:          left,
+			Arg2:          right,
+			Operation:     n.Op.String(),
+			OperationTime: getOperationTime(n.Op),
+		}
+		expression.Tasks = append(expression.Tasks, task)
+		Mutex.Unlock()
+
+		// Возвращаем ID задачи для обработки агентом
+		return float64(taskID)
+
+	case *ast.BasicLit:
+		// Листовые узлы, содержащие числа
+		val, _ := strconv.ParseFloat(n.Value, 64)
+		return val
+
+	case *ast.ParenExpr: // Обработка скобок
+		return parseAST(expression, n.X)
+
+	default:
+		return 0
+	}
+}
+
+// Функция для парсинга выражения
 func ParseExpression(exprID int, exprStr string) (*Expression, error) {
 	exprAST, err := parser.ParseExpr(exprStr)
 	if err != nil {
@@ -19,37 +59,14 @@ func ParseExpression(exprID int, exprStr string) (*Expression, error) {
 		Status: "cooking...(in progress, wait, bro)",
 	}
 
-	ast.Inspect(exprAST, func(n ast.Node) bool {
-		if binExpr, ok := n.(*ast.BinaryExpr); ok {
-			Mutex.Lock()
-			TaskCounter++
-			taskID := TaskCounter
-			Mutex.Unlock()
-
-			task := Task{
-				ID:            taskID,
-				Arg1:          extractValue(binExpr.X),
-				Arg2:          extractValue(binExpr.Y),
-				Operation:     binExpr.Op.String(),
-				OperationTime: int(getOperationTime(binExpr.Op)),
-			}
-			expression.Tasks = append(expression.Tasks, task)
-		}
-		return true
-	})
+	// Парсим AST и генерируем задачи
+	parseAST(expression, exprAST)
 
 	return expression, nil
 }
 
-func extractValue(node ast.Expr) float64 {
-	if lit, ok := node.(*ast.BasicLit); ok {
-		val, _ := strconv.ParseFloat(lit.Value, 64)
-		return val
-	}
-	return 0
-}
-
-func getOperationTime(op token.Token) time.Duration {
+// Получаем время для операции, указанное в переменных среды
+func getOperationTime(op token.Token) int {
 	switch op {
 	case token.ADD:
 		return TimeAddition
@@ -60,6 +77,6 @@ func getOperationTime(op token.Token) time.Duration {
 	case token.QUO:
 		return TimeDivision
 	default:
-		return 1000 * time.Millisecond
+		return 1000
 	}
 }

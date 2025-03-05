@@ -2,7 +2,6 @@ package models
 
 import (
 	"sync"
-	"time"
 
 	"github.com/PavelFr8/Golang-Calc/pkg/env"
 )
@@ -13,8 +12,10 @@ type Task struct {
 	Arg2          float64 `json:"arg2"`
 	Operation     string  `json:"operation"`
 	OperationTime int     `json:"operation_time"`
+	Result        float64
 }
 
+// Структура выражения
 type Expression struct {
 	ID     int      `json:"id"`
 	Status string   `json:"status"`
@@ -28,8 +29,8 @@ var (
 	Mutex       sync.Mutex
 	ExprCounter int
 	TaskCounter int
-	TimeAddition =       time.Duration(env.GetEnvAsInt("TIME_ADDITION", 1000))
-	TimeSubtraction =   time.Duration(env.GetEnvAsInt("TIME_SUBTRACTION", 1000))
-	TimeMultiplication = time.Duration(env.GetEnvAsInt("TIME_MULTIPLICATION", 1000))
-	TimeDivision =     time.Duration(env.GetEnvAsInt("TIME_DIVISION", 1000))
+	TimeAddition =       env.GetEnvAsInt("TIME_ADDITION_MS", 1000)
+	TimeSubtraction =   env.GetEnvAsInt("TIME_SUBTRACTION_MS", 1000)
+	TimeMultiplication = env.GetEnvAsInt("TIME_MULTIPLICATIONS_MS", 1000)
+	TimeDivision =     env.GetEnvAsInt("TIME_DIVISIONS_MS", 1000)
 )
