@@ -92,6 +92,38 @@
 go test ./...
 ```
 
+## Пример работы через curl
+
+### 1. Добавить выражение
+
+```bash
+curl -X POST http://localhost:8080/api/v1/calculate -H "Content-Type: application/json" -d '{"expression": "3 * 4"}'
+```
+
+### 2. Получить все выражения
+
+```bash
+curl http://localhost:8080/api/v1/expressions
+```
+
+### 3. Получить задачу для агента
+
+```bash
+curl http://localhost:8080/internal/task
+```
+
+### 4. Завершить задачу
+
+```bash
+curl -X POST http://localhost:8080/internal/task -H "Content-Type: application/json" -d '{"id": "1", "result": 12.0}'
+```
+
+### 5. Проверить результат
+
+```bash
+curl http://localhost:8080/api/v1/expressions
+```
+
 ## Схема работы
 
 ![alt](img.png)
