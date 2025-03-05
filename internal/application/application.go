@@ -16,6 +16,10 @@ import (
 
 type Config struct {
 	Addr string
+	TimeAddition time.Duration
+	TimeSubtraction time.Duration
+	TimeMultiplication time.Duration
+	TimeDivision time.Duration
 }
 
 func ConfigFromEnv() *Config {
