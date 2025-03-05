@@ -6,5 +6,6 @@ import (
 
 func main() {
 	orchestrator := orchestrator.New()
-	orchestrator.RunServer()
+	go orchestrator.RunServer()
+	select {}
 }

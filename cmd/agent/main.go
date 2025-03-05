@@ -6,5 +6,6 @@ import (
 
 func main() {
 	agent := agent.New()
-	agent.RunServer()
+	go agent.RunServer()
+	select {}
 }
