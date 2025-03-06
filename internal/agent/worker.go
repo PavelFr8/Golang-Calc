@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -20,7 +21,7 @@ var (
 	wg sync.WaitGroup
 )
 
-func getTask() (*models.Task, error) {
+func GetTask() (*models.Task, error) {
 	resp, err := http.Get(orchestratorURL + "/internal/task")
 	if err != nil {
 		return nil, err
@@ -41,7 +42,7 @@ func getTask() (*models.Task, error) {
 }
 
 
-func calc(task *models.Task) float64 {
+func Calc(task *models.Task) float64 {
 	switch task.Operation {
 	case "+":
 		return task.Arg1 + task.Arg2
@@ -60,7 +61,7 @@ func calc(task *models.Task) float64 {
 }
 
 // Функция для отправки выражения на оркестратор
-func submitResult(taskID int, result float64) error {
+func SubmitResult(taskID string, result float64) error {
 	resultPayload := models.TaskResult{
 		ID:     taskID,
 		Result: result,
@@ -83,10 +84,10 @@ func submitResult(taskID int, result float64) error {
 }
 
 // Демон, который получает выражение для вычисления с оркестратора, вычисляет его и отправляет на оркестратор результат выражения.
-func worker() {
+func Worker() {
 	defer wg.Done()
 	for {
-		task, err := getTask()
+		task, err := GetTask()
 		if err != nil {
 			fmt.Println("Ошибка получения задачи:", err)
 			time.Sleep(demonSleepTime)
@@ -98,14 +99,14 @@ func worker() {
 		}
 
 		fmt.Printf("Получена задача: %v\n", *task)
-		result := calc(task)
+		result := Calc(task)
 		time.Sleep(time.Duration(task.OperationTime) * time.Millisecond)
-		fmt.Println(time.Duration(task.OperationTime) * time.Millisecond)
 
-		if err := submitResult(task.ID, result); err != nil {
+		int_id, _ := strconv.Atoi(task.ID)
+		if err := SubmitResult(task.ID, result); err != nil {
 			fmt.Println("Ошибка отправки результата:", err)
 		} else {
-			fmt.Printf("Задача %d выполнена, результат: %f\n", task.ID, result)
+			fmt.Printf("Задача %d выполнена, результат: %f\n", int_id, result)
 		}
 	}
 }
@@ -114,7 +115,7 @@ func (a *Agent) StartWorkers() {
 	a.logger.Info("Запуск супер-секретный-демонов-агентов", zap.Int("computingPower", computingPower))
 	for i := 0; i < computingPower; i++ {
 		wg.Add(1)
-		go worker()
+		go Worker()
 	}
 	wg.Wait()
 }

@@ -1,0 +1,35 @@
+# Используем официальный образ Go
+FROM golang:1.23 AS builder
+
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Копируем go.mod и go.sum
+COPY go.mod go.sum ./
+
+# Загружаем зависимости
+RUN go mod download
+
+# Копируем все остальные файлы
+COPY . .
+
+# Собираем оркестратор
+RUN go build -o orchestrator ./cmd/orchestrator
+
+# Используем минимальный образ для запуска
+FROM alpine:latest
+
+# Копируем собранный бинарник из предыдущего шага
+COPY --from=builder /app/orchestrator /usr/local/bin/orchestrator
+
+# Устанавливаем переменные окружения
+ENV TIME_ADDITION_MS=100
+ENV TIME_SUBTRACTION_MS=100
+ENV TIME_MULTIPLICATIONS_MS=100
+ENV TIME_DIVISIONS_MS=100
+
+# Открываем порт
+EXPOSE 8080
+
+# Запускаем оркестратор
+CMD ["orchestrator"]

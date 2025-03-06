@@ -1,63 +1,14 @@
-# Golang-Calc
+# Уставший калькулятор от Павла (Tired Calc)
 
-## Функциональность
+Привет братуха! Этот ридми пишет очень уставший Павел, но несмотря на усталость, я буду рад, если тебе понравится мой калькулятор. Если будут какие-то проблемы, то пиши в тг @PvlKud. Всё, удачи!
 
-- Поддержка арифметических операций: сложение, вычитание, умножение, деление.
-- Обработка ошибок:
-  - Неверное выражение (422 Unprocessable Entity).
-  - Ошибка выполнения (500 Internal Server Error).
-  - Деление на ноль (500 Internal Server Error).
-- Логирование HTTP-запросов и ошибок с использованием библиотеки [zap](https://github.com/uber-go/zap).
-
-## Примеры использования
-
-### Успешный запрос
-
-```bash
-curl --location "http://localhost:8080/api/v1/calculate" --header "Content-Type: application/json" --data "{\"expression\": \"2+2*2\"}"
-```
-
-#### Ответ
-
-```json
-{
-  "result": "6.000000"
-}
-```
-
-### Ошибка 422: Неверное выражение
-
-```bash
-curl --location "http://localhost:8080/api/v1/calculate" --header "Content-Type: application/json" --data "{\"expression\": \"2+\"}"
-```
-
-#### Ответ
-
-```json
-{
-  "error": "Expression is not valid"
-}
-```
-
-### Ошибка 500: Деление на ноль
-
-```bash
-curl --location "http://localhost:8080/api/v1/calculate" --header "Content-Type: application/json" --data "{\"expression\": \"999/0\"}"
-```
-
-#### Ответ
-
-```json
-{
-  "error": "Internal server error"
-}
-```
+А нет, я ещё написал веб-интерфейс, поэтому если захочешь протестить, то не парься и просто юзай его.
 
 ## Инструкция по запуску
 
 ### Требования
 
-- Go версии 1.23.0 или выше
+- Go версии 1.20.0 или выше
 - Установленный zap
 
 ### Установка и запуск
@@ -69,32 +20,71 @@ curl --location "http://localhost:8080/api/v1/calculate" --header "Content-Type:
    cd Golang-Calc
    ```
 
-2. Установите zap:
+2. Установите библиотеки:
 
    ```bash
-   go get github.com/gorilla/mux
-   go get go.uber.org/zap
+   go mod tidy
    ```
 
-3. Запустите сервис:
+3. Скопируйте файл с примером переменных окружения:
+
+  Для Linux/Mac:
+
+  ```bash
+  cp template.env .env
+  ```
+
+  Для Windows:
+
+  ```bash
+  copy template.env .env
+  ```
+
+4. Запустите агент:
 
    ```bash
-   go run ./cmd/main.go
+   go run ./cmd/agent/main.go
    ```
 
-4. Сервис будет запущен на `http://localhost:8080`.
+4. Запустите оркестратор в другом терминале(или потоке):
 
-### Переменные окружения
+   ```bash
+   go run ./cmd/orchestrator/main.go
+   ```
 
-- `PORT` — порт для запуска сервера. Если переменная не указана, используется значение по умолчанию: `8080`.
+5. Сервис будет запущен на `http://localhost:8080.`.
+
+## Запуск через Docker
+
+1. Клонируйте репозиторий:
+
+   ```bash
+   git clone https://github.com/PavelFr8/Golang-Calc.git
+   cd Golang-Calc
+   ```
+
+2. Скопируйте файл с примером переменных окружения:
+
+  Для Linux/Mac:
+
+  ```bash
+  cp template.env .env
+  ```
+
+  Для Windows:
+
+  ```bash
+  copy template.env .env
+  ```
+
+3. Запустите Docker:
+
+   ```bash
+   docker-compose build  
+   docker-compose up
+   ```
 
 ## Тестирование
-
-Тесты для http-сервера находятся в файле `internal/application/application_test.go`.
-
-Тесты для функции вычисления математических выражений находятся в файле `pkg/calculation/calculation_test.go`.
-
-Для запуска тестов выполните:
 
 ```bash
 go test ./...
