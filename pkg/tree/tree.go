@@ -133,6 +133,9 @@ func (p *parser) parseSubExpr() (*Node, error) {
 		if ch == '*' || ch == '/' {
 			op := string(p.advance())
 			rightNode, err := p.parseElement()
+			if rightNode.Value == 0 && ch == '/' {
+				return nil, ErrDivisionByZero
+			}
 			if err != nil {
 				return nil, err
 			}

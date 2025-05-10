@@ -54,7 +54,7 @@ func TestNewTask(t *testing.T) {
 	o := orchestrator.New()
 	logger.SetupLogger()
 	node, _ := tree.BuildNode("3+5")
-	expr := orchestrator.Expression{ID: "1", Expr: "3+5", Status: "pending", Node: node}
+	expr := orchestrator.Expression{ID: uint(1), Expr: "3+5", Status: "pending", Node: node}
 	o.NewTask(&expr)
 
 	assert.NotEmpty(t, o.TaskQueue)

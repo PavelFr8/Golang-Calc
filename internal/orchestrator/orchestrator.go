@@ -7,30 +7,43 @@ import (
 
 	"github.com/PavelFr8/Golang-Calc/pkg/logger"
 	"github.com/PavelFr8/Golang-Calc/pkg/tree"
+	"github.com/glebarez/sqlite"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 
 type Orchestrator struct {
 	Config      *OrchestratorConfig
 	logger *zap.Logger
-	Expressions   map[string]*Expression
-	Tasks   map[string]*Task
+	Expressions   map[uint]*Expression
+	Tasks   map[uint]*Task
 	TaskQueue   []*Task
 	Mu          sync.Mutex
-	exprCounter int64
-	taskCounter int64
-	
+	r *Repository
+}
+
+func InitDB() *gorm.DB {
+	db, err := gorm.Open(sqlite.Open("database.db"), &gorm.Config{})
+	if err != nil {
+		panic("failed to connect database")
+	}
+
+	if err := db.AutoMigrate(&Expression{}, &Task{}); err != nil {
+		panic("failed to migrate database")
+	}
+	return db
 }
 
 func New() *Orchestrator {
 	return &Orchestrator{
 		Config:    NewOrchestratorConfig(),
 		logger: logger.SetupLogger(),
-		Expressions: make(map[string]*Expression),
-		Tasks: make(map[string]*Task),
+		Expressions: make(map[uint]*Expression),
+		Tasks: make(map[uint]*Task),
 		TaskQueue: make([]*Task, 0),
+		r: NewRepository(InitDB()),	
 	}
 }
 
@@ -44,8 +57,7 @@ func (o *Orchestrator) NewTask(expr *Expression) {
 		traverse(node.Right)
 		if node.Left != nil && node.Right != nil && node.Left.IsLeaf && node.Right.IsLeaf {
 			if !node.ScheduledTask {
-				o.taskCounter++
-				taskID := fmt.Sprintf("%d", o.taskCounter)
+				taskID := o.r.GetMaxTaskID() + 1
 				var operationTime int
 				switch node.Operator {
 				case "+":
@@ -60,7 +72,6 @@ func (o *Orchestrator) NewTask(expr *Expression) {
 					operationTime = 100
 				}
 				task := &Task{
-					ID:            taskID,
 					ExprID:        expr.ID,
 					Arg1:          node.Left.Value,
 					Arg2:          node.Right.Value,
@@ -68,6 +79,7 @@ func (o *Orchestrator) NewTask(expr *Expression) {
 					OperationTime: operationTime,
 					Node:          node,
 				}
+				o.r.CreateTask(task)
 				node.ScheduledTask = true
 				o.Tasks[taskID] = task
 				o.TaskQueue = append(o.TaskQueue, task)

@@ -1,7 +1,7 @@
 package models
 
 type Task struct {
-	ID            string  `json:"id"`
+	ID            uint    `json:"id"`
 	Arg1          float64 `json:"arg1"`
 	Arg2          float64 `json:"arg2"`
 	Operation     string  `json:"operation"`
@@ -9,6 +9,6 @@ type Task struct {
 }
 
 type TaskResult struct {
-	ID     string  `json:"id"`
+	ID     uint    `json:"id"`
 	Result float64 `json:"result"`
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"sync"
 	"time"
 
@@ -51,17 +50,14 @@ func Calc(task *models.Task) float64 {
 	case "*":
 		return task.Arg1 * task.Arg2
 	case "/":
-		if task.Arg2 != 0 {
-			return task.Arg1 / task.Arg2
-		}
-		return 0
+		return task.Arg1 / task.Arg2
 	default:
 		return 0
 	}
 }
 
 // Функция для отправки выражения на оркестратор
-func SubmitResult(taskID string, result float64) error {
+func SubmitResult(taskID uint, result float64) error {
 	resultPayload := models.TaskResult{
 		ID:     taskID,
 		Result: result,
@@ -102,11 +98,10 @@ func Worker() {
 		result := Calc(task)
 		time.Sleep(time.Duration(task.OperationTime) * time.Millisecond)
 
-		int_id, _ := strconv.Atoi(task.ID)
 		if err := SubmitResult(task.ID, result); err != nil {
 			fmt.Println("Ошибка отправки результата:", err)
 		} else {
-			fmt.Printf("Задача %d выполнена, результат: %f\n", int_id, result)
+			fmt.Printf("Задача %d выполнена, результат: %f\n", task.ID, result)
 		}
 	}
 }

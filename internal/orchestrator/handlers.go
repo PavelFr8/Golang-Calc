@@ -6,15 +6,12 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/PavelFr8/Golang-Calc/pkg/tree"
 )
 
 func (o *Orchestrator) CalculateHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, `{"error":"Wrong Method"}`, http.StatusMethodNotAllowed)
-		return
-	}
 	var req struct {
 		Expression string `json:"expression"`
 	}
@@ -29,28 +26,26 @@ func (o *Orchestrator) CalculateHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	o.Mu.Lock()
-	o.exprCounter++
-	exprID := fmt.Sprintf("%d", o.exprCounter)
+	defer o.Mu.Unlock()
+	exprID := o.r.GetMaxExpressionID() + 1
 	expr := &Expression{
-		ID:     exprID,
 		Expr:   req.Expression,
 		Status: "pending",
 		Node:    tree,
 	}
+	if expr.Node.IsLeaf {
+		expr.Status = "completed"
+	}
+	o.r.CreateExpression(expr)
 	o.Expressions[exprID] = expr
 	o.NewTask(expr)
-	o.Mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"id": exprID})
+	json.NewEncoder(w).Encode(map[string]uint{"id": exprID})
 }
 
 func (o *Orchestrator) ExpressionsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"Wrong Method"}`, http.StatusMethodNotAllowed)
-		return
-	}
 	o.Mu.Lock()
 	defer o.Mu.Unlock()
 
@@ -58,10 +53,8 @@ func (o *Orchestrator) ExpressionsHandler(w http.ResponseWriter, r *http.Request
 	for _, expr := range o.Expressions {
 		if expr.Node != nil && expr.Node.IsLeaf {
 			if err := tree.Check(expr.Node); err != nil {
-				expr.Status = "error"
 				expr.Result = nil
 			} else {
-				expr.Status = "completed"
 				expr.Result = &expr.Node.Value
 			}
 		}
@@ -73,11 +66,8 @@ func (o *Orchestrator) ExpressionsHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (o *Orchestrator) ExpressionByIDHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"Wrong Method"}`, http.StatusMethodNotAllowed)
-		return
-	}
-	id := r.URL.Path[len("/api/v1/expressions/"):]
+	int_id, _ := strconv.Atoi(r.URL.Path[len("/api/v1/expressions/"):])
+	id := uint(int_id)
 	o.Mu.Lock()
 	expr, ok := o.Expressions[id]
 	o.Mu.Unlock()
@@ -86,7 +76,6 @@ func (o *Orchestrator) ExpressionByIDHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	if expr.Node != nil && expr.Node.IsLeaf {
-		expr.Status = "completed"
 		expr.Result = &expr.Node.Value
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -95,10 +84,6 @@ func (o *Orchestrator) ExpressionByIDHandler(w http.ResponseWriter, r *http.Requ
 
 // Тупо отдаем самый последний элемент очереди
 func (o *Orchestrator) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"Wrong Method"}`, http.StatusMethodNotAllowed)
-		return
-	}
 	o.Mu.Lock()
 	defer o.Mu.Unlock()
 
@@ -110,36 +95,22 @@ func (o *Orchestrator) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 	task := o.TaskQueue[0]
 	o.TaskQueue = o.TaskQueue[1:]
 
-	if expr, exists := o.Expressions[task.ExprID]; exists {
-		if expr.Status == "pending" || expr.Status == "completed" {
-			if err := tree.Check(expr.Node); err != nil {
-				expr.Status = "error"
-				expr.Result = nil
-			} else {
-				expr.Status = "in_progress"
-			}
-		}
-	} else {
+	if _, exists := o.Expressions[task.ExprID]; !exists {
 		http.Error(w, `{"error":"Task expression not found"}`, http.StatusNotFound)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"task": task})
 }
 
 // Тут уже с огромной болью с слезами, добавляем решенное выражение обратно в очередь
 func (o *Orchestrator) PostTaskHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, `{"error":"Wrong Method"}`, http.StatusMethodNotAllowed)
-		return
-	}
 	var req struct {
-		ID     string  `json:"id"`
+		ID     uint  `json:"id"`
 		Result float64 `json:"result"`
 	}
 	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil || req.ID == "" {
+	if err != nil || req.ID == 0 {
 		http.Error(w, `{"error":"Invalid Body"}`, http.StatusUnprocessableEntity)
 		return
 	}
@@ -158,6 +129,7 @@ func (o *Orchestrator) PostTaskHandler(w http.ResponseWriter, r *http.Request) {
 		if expr.Node.IsLeaf {
 			expr.Status = "completed"
 			expr.Result = &expr.Node.Value
+			o.r.db.Updates(expr)
 		}
 	}
 	o.Mu.Unlock()
