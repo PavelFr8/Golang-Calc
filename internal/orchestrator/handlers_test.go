@@ -60,20 +60,3 @@ func TestNewTask(t *testing.T) {
 	assert.NotEmpty(t, o.TaskQueue)
 	assert.NotEmpty(t, o.Tasks)
 }
-
-func TestGetTaskHandler_NoTasks(t *testing.T) {
-	orchestrator := orchestrator.New()
-	req, _ := http.NewRequest(http.MethodGet, "/internal/task", nil)
-	rr := httptest.NewRecorder()
-	http.HandlerFunc(orchestrator.GetTaskHandler).ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusNotFound, rr.Code)
-}
-
-func TestPostTaskHandler_TaskNotFound(t *testing.T) {
-	orchestrator := orchestrator.New()
-	reqBody := []byte(`{"id": "999", "result": 8}`)
-	req, _ := http.NewRequest(http.MethodPost, "/internal/task", bytes.NewBuffer(reqBody))
-	rr := httptest.NewRecorder()
-	http.HandlerFunc(orchestrator.PostTaskHandler).ServeHTTP(rr, req)
-	assert.Equal(t, http.StatusNotFound, rr.Code)
-}

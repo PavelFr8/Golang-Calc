@@ -2,14 +2,18 @@ package orchestrator
 
 import (
 	"fmt"
+	"net"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/PavelFr8/Golang-Calc/pkg/logger"
 	"github.com/PavelFr8/Golang-Calc/pkg/tree"
+	pb "github.com/PavelFr8/Golang-Calc/proto"
 	"github.com/glebarez/sqlite"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 	"gorm.io/gorm"
 )
 
@@ -22,6 +26,7 @@ type Orchestrator struct {
 	TaskQueue   []*Task
 	Mu          sync.Mutex
 	r *Repository
+	pb.OrchestratorServer
 }
 
 func InitDB() *gorm.DB {
@@ -114,6 +119,29 @@ func (o *Orchestrator) NewTask(expr *Expression) {
 	traverse(expr.Node)
 }
 
+func (o *Orchestrator) RunGrpc() {
+	host := "localhost"
+	port := "5000"
+
+	addr := fmt.Sprintf("%s:%s", host, port)
+	lis, err := net.Listen("tcp", addr)
+
+	if err != nil {
+		o.logger.Info("error starting tcp listener: " + err.Error())
+		os.Exit(1)
+	}
+	
+	o.logger.Info("tcp listener started at port: " + port)
+	grpcServer := grpc.NewServer()
+	// зарегистрируем нашу реализацию сервера
+	pb.RegisterOrchestratorServer(grpcServer, o)
+	// запустим grpc сервер
+	if err := grpcServer.Serve(lis); err != nil {
+		o.logger.Info("error serving grpc: " + err.Error())
+		os.Exit(1)
+	}
+}
+
 func (o *Orchestrator) RunServer() error {
 	r := mux.NewRouter()
 
@@ -123,8 +151,6 @@ func (o *Orchestrator) RunServer() error {
 	r.HandleFunc("/api/v1/calculate", o.CalculateHandler).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/expressions", o.ExpressionsHandler).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/expressions/{id}", o.ExpressionByIDHandler).Methods(http.MethodGet)
-	r.HandleFunc("/internal/task", o.GetTaskHandler).Methods(http.MethodGet)
-	r.HandleFunc("/internal/task", o.PostTaskHandler).Methods(http.MethodPost)
 
     r.PathPrefix("/css/").Handler(http.StripPrefix("/css/", http.FileServer(http.Dir("web/css"))))
     r.PathPrefix("/js/").Handler(http.StripPrefix("/js/", http.FileServer(http.Dir("web/js"))))
@@ -136,6 +162,8 @@ func (o *Orchestrator) RunServer() error {
 		"Мой любименький Оркестратор-Сервер, который сжек 50 тысяч моих нервных клеток запущен :)", 
 		zap.String("address", fmt.Sprintf(":%s", o.Config.OrchestratorPort)),
 	)
+
+	go o.RunGrpc()
 
 	return http.ListenAndServe(":"+o.Config.OrchestratorPort, r)
 }

@@ -1,0 +1,22 @@
+syntax = "proto3";
+package calc;
+option go_package = "github.com/PavelFr8/Golang-Calc/proto";
+
+message Task {
+    uint32 ID = 1;
+    double Arg1 = 2;
+    double Arg2 = 3;
+    string Operation = 4;
+    int32 OperationTime = 5;
+}
+message TaskResult {
+    uint32 ID = 1;
+    double Result = 2;
+}
+
+message Empty {}
+
+service Orchestrator {
+    rpc GetTask (Empty) returns (Task);
+    rpc PostTask (TaskResult) returns (Empty);
+}

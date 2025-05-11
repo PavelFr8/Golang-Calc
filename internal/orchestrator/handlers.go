@@ -1,6 +1,7 @@
 package orchestrator
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/PavelFr8/Golang-Calc/pkg/tree"
+	pb "github.com/PavelFr8/Golang-Calc/proto"
 )
 
 func (o *Orchestrator) CalculateHandler(w http.ResponseWriter, r *http.Request) {
@@ -84,48 +86,42 @@ func (o *Orchestrator) ExpressionByIDHandler(w http.ResponseWriter, r *http.Requ
 }
 
 // Тупо отдаем самый последний элемент очереди
-func (o *Orchestrator) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
+func (o *Orchestrator) GetTask(ctx context.Context, in *pb.Empty) (*pb.Task, error) {
 	o.Mu.Lock()
 	defer o.Mu.Unlock()
 
 	if len(o.TaskQueue) == 0 {
-		http.Error(w, `{"error":"No task available"}`, http.StatusNotFound)
-		return
+		return nil, fmt.Errorf("No task available")
 	}
 
 	task := o.TaskQueue[0]
 	o.TaskQueue = o.TaskQueue[1:]
 
 	if _, exists := o.Expressions[task.ExprID]; !exists {
-		http.Error(w, `{"error":"Task expression not found"}`, http.StatusNotFound)
-		return
+		return nil, fmt.Errorf("Task expression not found")
 	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{"task": task})
+	grpc_task := &pb.Task{
+		ID: uint32(task.ID),
+		Arg1: *task.Arg1,
+		Arg2: *task.Arg2,
+		Operation: task.Operation,
+		OperationTime: int32(task.OperationTime),
+	}
+	return grpc_task, nil
 }
 
 // Тут уже с огромной болью с слезами, добавляем решенное выражение обратно в очередь
-func (o *Orchestrator) PostTaskHandler(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ID     uint  `json:"id"`
-		Result *float64 `json:"result"`
-	}
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil || req.ID == 0 {
-		http.Error(w, `{"error":"Invalid Body"}`, http.StatusUnprocessableEntity)
-		return
-	}
+func (o *Orchestrator) PostTask(ctx context.Context, grpc_task *pb.TaskResult) (*pb.Empty, error) {
 	o.Mu.Lock()
-	task, ok := o.Tasks[req.ID]
+	task, ok := o.Tasks[uint(grpc_task.ID)]
 	if !ok {
 		o.Mu.Unlock()
-		http.Error(w, `{"error":"Task not found"}`, http.StatusNotFound)
-		return
+		return nil, fmt.Errorf("Task not found")
 	}
-	task.Result = req.Result
+	task.Result = &grpc_task.Result
 	task.Node.IsLeaf = true
-	task.Node.Value = req.Result
-	delete(o.Tasks, req.ID)
+	task.Node.Value = &grpc_task.Result
+	delete(o.Tasks, uint(grpc_task.ID))
 	o.r.db.Updates(task)
 	if expr, exists := o.Expressions[task.ExprID]; exists {
 		o.NewTask(expr)
@@ -136,8 +132,7 @@ func (o *Orchestrator) PostTaskHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	o.Mu.Unlock()
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"result accepted"}`))
+	return nil, nil
 }
 
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
