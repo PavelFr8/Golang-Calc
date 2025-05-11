@@ -10,11 +10,11 @@ import (
 	"github.com/PavelFr8/Golang-Calc/pkg/logger"
 	"github.com/PavelFr8/Golang-Calc/pkg/tree"
 	pb "github.com/PavelFr8/Golang-Calc/proto"
-	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
+
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"gorm.io/gorm"
 )
 
 
@@ -29,16 +29,16 @@ type Orchestrator struct {
 	pb.OrchestratorServer
 }
 
-func InitDB() *gorm.DB {
-	db, err := gorm.Open(sqlite.Open("database.db"), &gorm.Config{})
-	if err != nil {
-		panic("failed to connect database")
-	}
 
-	if err := db.AutoMigrate(&Expression{}, &Task{}); err != nil {
-		panic("failed to migrate database")
+func New() *Orchestrator {
+	return &Orchestrator{
+		Config:    NewOrchestratorConfig(),
+		logger: logger.SetupLogger(),
+		Expressions: make(map[uint]*Expression),
+		Tasks: make(map[uint]*Task),
+		TaskQueue: make([]*Task, 0),
+		r: NewRepository(InitDB()),	
 	}
-	return db
 }
 
 func (o *Orchestrator) LoadAndQueuePendingTasks() {
@@ -63,18 +63,6 @@ func (o *Orchestrator) LoadAndQueuePendingTasks() {
 			o.NewTask(e)
 		}
     }
-}
-
-
-func New() *Orchestrator {
-	return &Orchestrator{
-		Config:    NewOrchestratorConfig(),
-		logger: logger.SetupLogger(),
-		Expressions: make(map[uint]*Expression),
-		Tasks: make(map[uint]*Task),
-		TaskQueue: make([]*Task, 0),
-		r: NewRepository(InitDB()),	
-	}
 }
 
 func (o *Orchestrator) NewTask(expr *Expression) {
@@ -133,7 +121,6 @@ func (o *Orchestrator) RunGrpc() {
 	
 	o.logger.Info("tcp listener started at port: " + port)
 	grpcServer := grpc.NewServer()
-	// зарегистрируем нашу реализацию сервера
 	pb.RegisterOrchestratorServer(grpcServer, o)
 	// запустим grpc сервер
 	if err := grpcServer.Serve(lis); err != nil {
@@ -146,11 +133,21 @@ func (o *Orchestrator) RunServer() error {
 	r := mux.NewRouter()
 
 	// Добавляем мидлварь для логирования
-	r.Use(logger.LoggingMiddleware(o.logger)) 
+	r.Use(logger.LoggingMiddleware(o.logger))
+
+	exempt := map[string]bool{
+		"/api/v1/login":    true,
+		"/api/v1/register": true,
+		"/":                true,
+	}
+
+	r.Use(JWTMiddleware(o.Config.JWTsecret, exempt))
 
 	r.HandleFunc("/api/v1/calculate", o.CalculateHandler).Methods(http.MethodPost)
 	r.HandleFunc("/api/v1/expressions", o.ExpressionsHandler).Methods(http.MethodGet)
 	r.HandleFunc("/api/v1/expressions/{id}", o.ExpressionByIDHandler).Methods(http.MethodGet)
+	r.HandleFunc("/api/v1/register", o.RegisterHandler).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/login", o.LoginHandler).Methods(http.MethodPost)
 
     r.PathPrefix("/css/").Handler(http.StripPrefix("/css/", http.FileServer(http.Dir("web/css"))))
     r.PathPrefix("/js/").Handler(http.StripPrefix("/js/", http.FileServer(http.Dir("web/js"))))

@@ -1,7 +1,6 @@
 package orchestrator
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -10,8 +9,9 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/PavelFr8/Golang-Calc/pkg/hash"
 	"github.com/PavelFr8/Golang-Calc/pkg/tree"
-	pb "github.com/PavelFr8/Golang-Calc/proto"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func (o *Orchestrator) CalculateHandler(w http.ResponseWriter, r *http.Request) {
@@ -31,10 +31,16 @@ func (o *Orchestrator) CalculateHandler(w http.ResponseWriter, r *http.Request) 
 	o.Mu.Lock()
 	defer o.Mu.Unlock()
 	exprID := o.r.GetMaxExpressionID() + 1
+	userID, ok := GetUserID(r)
+	if !ok {
+		http.Error(w, `{"error":"Auth fail. Refresh token"}`, http.StatusUnauthorized)
+		return
+	}
 	expr := &Expression{
 		Expr:   req.Expression,
 		Status: "pending",
 		Node:    tree,
+		UserID: userID,
 	}
 	if expr.Node.IsLeaf {
 		expr.Status = "completed"
@@ -52,16 +58,24 @@ func (o *Orchestrator) ExpressionsHandler(w http.ResponseWriter, r *http.Request
 	o.Mu.Lock()
 	defer o.Mu.Unlock()
 
+	userID, ok := GetUserID(r)
+	if !ok {
+		http.Error(w, `{"error":"Auth fail. Refresh token"}`, http.StatusUnauthorized)
+		return
+	}
+
 	exprs := make([]*Expression, 0, len(o.Expressions))
 	for _, expr := range o.Expressions {
-		if expr.Node != nil && expr.Node.IsLeaf {
-			if err := tree.Check(expr.Node); err != nil {
-				expr.Result = nil
-			} else {
-				expr.Result = expr.Node.Value
+		if expr.UserID == userID {
+			if expr.Node != nil && expr.Node.IsLeaf {
+				if err := tree.Check(expr.Node); err != nil {
+					expr.Result = nil
+				} else {
+					expr.Result = expr.Node.Value
+				}
 			}
+			exprs = append(exprs, expr)
 		}
-		exprs = append(exprs, expr)
 	}
 	sort.Slice(exprs, func(i, j int) bool {return exprs[i].ID < exprs[j].ID})
 	w.Header().Set("Content-Type", "application/json")
@@ -69,10 +83,20 @@ func (o *Orchestrator) ExpressionsHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (o *Orchestrator) ExpressionByIDHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := GetUserID(r)
+	if !ok {
+		http.Error(w, `{"error":"Auth fail. Refresh token"}`, http.StatusUnauthorized)
+		return
+	}
 	int_id, _ := strconv.Atoi(r.URL.Path[len("/api/v1/expressions/"):])
 	id := uint(int_id)
 	o.Mu.Lock()
 	expr, ok := o.Expressions[id]
+	if expr.UserID != userID {
+		o.Mu.Unlock()
+		http.Error(w, `{"error":"You haven't got access to this expression"}`, http.StatusForbidden)
+		return
+	}
 	o.Mu.Unlock()
 	if !ok {
 		http.Error(w, `{"error":"Expression not found"}`, http.StatusNotFound)
@@ -83,56 +107,6 @@ func (o *Orchestrator) ExpressionByIDHandler(w http.ResponseWriter, r *http.Requ
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"expression": expr})
-}
-
-// Тупо отдаем самый последний элемент очереди
-func (o *Orchestrator) GetTask(ctx context.Context, in *pb.Empty) (*pb.Task, error) {
-	o.Mu.Lock()
-	defer o.Mu.Unlock()
-
-	if len(o.TaskQueue) == 0 {
-		return nil, fmt.Errorf("No task available")
-	}
-
-	task := o.TaskQueue[0]
-	o.TaskQueue = o.TaskQueue[1:]
-
-	if _, exists := o.Expressions[task.ExprID]; !exists {
-		return nil, fmt.Errorf("Task expression not found")
-	}
-	grpc_task := &pb.Task{
-		ID: uint32(task.ID),
-		Arg1: *task.Arg1,
-		Arg2: *task.Arg2,
-		Operation: task.Operation,
-		OperationTime: int32(task.OperationTime),
-	}
-	return grpc_task, nil
-}
-
-// Тут уже с огромной болью с слезами, добавляем решенное выражение обратно в очередь
-func (o *Orchestrator) PostTask(ctx context.Context, grpc_task *pb.TaskResult) (*pb.Empty, error) {
-	o.Mu.Lock()
-	task, ok := o.Tasks[uint(grpc_task.ID)]
-	if !ok {
-		o.Mu.Unlock()
-		return nil, fmt.Errorf("Task not found")
-	}
-	task.Result = &grpc_task.Result
-	task.Node.IsLeaf = true
-	task.Node.Value = &grpc_task.Result
-	delete(o.Tasks, uint(grpc_task.ID))
-	o.r.db.Updates(task)
-	if expr, exists := o.Expressions[task.ExprID]; exists {
-		o.NewTask(expr)
-		if expr.Node.IsLeaf {
-			expr.Status = "completed"
-			expr.Result = expr.Node.Value
-			o.r.db.Updates(expr)
-		}
-	}
-	o.Mu.Unlock()
-	return nil, nil
 }
 
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
@@ -150,4 +124,63 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.ServeContent(w, r, "index.html", fileInfo.ModTime(), file)
+}
+
+func (o *Orchestrator) RegisterHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Login      string   `json:"login"`
+		Password   string   `json:"password"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, `{"error":"Invalid Body"}`, http.StatusUnprocessableEntity)
+		return
+	}
+	err2 := o.r.CreateUser(req.Login, req.Password)
+	if err2 != nil || req.Login == "" || req.Password == "" {
+		http.Error(w, `{"error":"Invalid login or password"}`, http.StatusUnprocessableEntity)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusContinue)
+	json.NewEncoder(w).Encode(map[string]string{"status": "OK"})
+}
+
+func (o *Orchestrator) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Login      string   `json:"login"`
+		Password   string   `json:"password"`
+	}
+	var user User
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, `{"error":"Invalid Body"}`, http.StatusUnprocessableEntity)
+		return
+	}
+	err2 := o.r.db.Where("login = ?", req.Login).First(&user).Error
+	if err2 != nil {
+		http.Error(w, `{"error":"Invalid login or password"}`, http.StatusUnprocessableEntity)
+		return
+	}
+	if err3 := hash.Compare(user.Password, req.Password); err3 != nil {
+		http.Error(w, `{"error":"Invalid login or password"}`, http.StatusUnprocessableEntity)
+		return
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.ID,
+	})
+	
+	tokenString, err := token.SignedString(o.Config.JWTsecret)
+	if err != nil {
+		http.Error(w, `{"error":"Token generation failed"}`, http.StatusInternalServerError)
+		fmt.Println("Error generating token:", err)
+		return
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusContinue)
+	json.NewEncoder(w).Encode(map[string]string{
+		"status": "OK",
+		"token": tokenString})
 }

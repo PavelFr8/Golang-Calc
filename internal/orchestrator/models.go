@@ -21,5 +21,13 @@ type Expression struct {
 	Status   string      `json:"status"`
 	Result   *float64    `json:"result,omitempty"`
 	Tasks    []Task      `gorm:"foreignKey:ExprID" json:"tasks,omitempty"`
+	UserID   uint        `json:"-"`
 	Node     *tree.Node  `gorm:"-" json:"-"`
+}
+
+type User struct {
+	ID             uint     `gorm:"primaryKey"`
+	Login          string   `gorm:"unique"`
+	Password       string
+	Expressions    []Expression `gorm:"foreignKey:UserID"`
 }

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/PavelFr8/Golang-Calc/internal/agent"
-	"github.com/PavelFr8/Golang-Calc/internal/agent/models"
+	pb "github.com/PavelFr8/Golang-Calc/proto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,15 +12,15 @@ import (
 func TestCalc(t *testing.T) {
 	tests := []struct {
 		name     string
-		task     models.Task
+		task     pb.Task
 		expected float64
 	}{
-		{"addition", models.Task{Arg1: 2, Arg2: 3, Operation: "+"}, 5},
-		{"subtraction", models.Task{Arg1: 5, Arg2: 3, Operation: "-"}, 2},
-		{"multiplication", models.Task{Arg1: 2, Arg2: 3, Operation: "*"}, 6},
-		{"division", models.Task{Arg1: 6, Arg2: 3, Operation: "/"}, 2},
-		{"division by zero", models.Task{Arg1: 6, Arg2: 0, Operation: "/"}, 0},
-		{"invalid operation", models.Task{Arg1: 2, Arg2: 3, Operation: "^"}, 0},
+		{"addition", pb.Task{Arg1: 2, Arg2: 3, Operation: "+"}, 5},
+		{"subtraction", pb.Task{Arg1: 5, Arg2: 3, Operation: "-"}, 2},
+		{"multiplication", pb.Task{Arg1: 2, Arg2: 3, Operation: "*"}, 6},
+		{"division", pb.Task{Arg1: 6, Arg2: 3, Operation: "/"}, 2},
+		{"division by zero", pb.Task{Arg1: 6, Arg2: 0, Operation: "/"}, 0},
+		{"invalid operation", pb.Task{Arg1: 2, Arg2: 3, Operation: "^"}, 0},
 	}
 
 	for _, tt := range tests {

@@ -47,7 +47,7 @@ func (a *Agent) Worker() {
 			continue
 		}
 
-		fmt.Printf("Получена задача: %v\n", *task)
+		fmt.Printf("Получена задача: %v\n", task)
 		result := Calc(task)
 		time.Sleep(time.Duration(task.OperationTime) * time.Millisecond)
 		resultTask := &pb.TaskResult{

@@ -1,6 +1,8 @@
 package orchestrator
 
 import (
+	"github.com/PavelFr8/Golang-Calc/pkg/hash"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -18,6 +20,18 @@ func (r *Repository) CreateExpression(expr *Expression) error {
 
 func (r *Repository) CreateTask(task *Task) error {
 	return r.db.Create(task).Error
+}
+
+func (r *Repository) CreateUser(login string, password string) error {
+    hash_password, err := hash.Generate(password)
+    if err != nil {
+        return err
+    }
+    user := &User{
+        Login: login,
+        Password: hash_password,
+    }
+	return r.db.Create(user).Error
 }
 
 func (r *Repository) GetMaxTaskID() uint {
@@ -44,3 +58,14 @@ func (r *Repository) GetMaxExpressionID() uint {
     return maxIDObject.ID
 }
 
+func InitDB() *gorm.DB {
+	db, err := gorm.Open(sqlite.Open("database.db"), &gorm.Config{})
+	if err != nil {
+		panic("failed to connect database")
+	}
+
+	if err := db.AutoMigrate(&Expression{}, &Task{}, &User{}); err != nil {
+		panic("failed to migrate database")
+	}
+	return db
+}

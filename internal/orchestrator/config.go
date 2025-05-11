@@ -6,6 +6,7 @@ import (
 
 type OrchestratorConfig struct {
 	OrchestratorPort    string
+	JWTsecret           []byte
 	TimeAddition        int
 	TimeSubtraction     int
 	TimeMultiplications int
@@ -15,6 +16,7 @@ type OrchestratorConfig struct {
 func NewOrchestratorConfig() *OrchestratorConfig {
 	return &OrchestratorConfig{
 		OrchestratorPort:    env.GetEnv("ORCHESTRATOR_PORT", "8080"),
+		JWTsecret:           []byte(env.GetEnv("JWT_SECRET", "qwerty12345")),
 		TimeAddition:        env.GetEnvAsInt("TIME_ADDITION_MS", 1000),
 		TimeSubtraction:     env.GetEnvAsInt("TIME_SUBTRACTION_MS", 1000),
 		TimeMultiplications: env.GetEnvAsInt("TIME_MULTIPLICATIONS_MS", 1000),
