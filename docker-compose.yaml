@@ -6,11 +6,15 @@ services:
       dockerfile: Dockerfile.orchestrator
     ports:
       - "8080:8080"
+      - "5000:5000"
+    volumes:
+      - ./web:/app/web
     environment:
       - TIME_ADDITION_MS=200
       - TIME_SUBTRACTION_MS=200
       - TIME_MULTIPLICATIONS_MS=300
       - TIME_DIVISIONS_MS=400
+      - ORCHESTRATOR_GRPC_ADDR=orchestrator:5000
 
   agent:
     build:
@@ -20,4 +24,4 @@ services:
       - orchestrator
     environment:
       - COMPUTING_POWER=4
-      - ORCHESTRATOR_URL=http://orchestrator:8080
+      - ORCHESTRATOR_GRPC_ADDR=orchestrator:5000

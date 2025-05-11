@@ -92,14 +92,13 @@ func (o *Orchestrator) ExpressionByIDHandler(w http.ResponseWriter, r *http.Requ
 	id := uint(int_id)
 	o.Mu.Lock()
 	expr, ok := o.Expressions[id]
-	if expr.UserID != userID {
-		o.Mu.Unlock()
-		http.Error(w, `{"error":"You haven't got access to this expression"}`, http.StatusForbidden)
-		return
-	}
 	o.Mu.Unlock()
 	if !ok {
 		http.Error(w, `{"error":"Expression not found"}`, http.StatusNotFound)
+		return
+	}
+	if expr.UserID != userID {
+		http.Error(w, `{"error":"You haven't got access to this expression"}`, http.StatusForbidden)
 		return
 	}
 	if expr.Node != nil && expr.Node.IsLeaf {

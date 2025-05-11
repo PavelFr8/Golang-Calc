@@ -7,5 +7,6 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -o orchestrator ./cmd/orchestrator/main
 FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /app/orchestrator .
+COPY --from=builder /app/web ./web
 EXPOSE 8080
 ENTRYPOINT ["./orchestrator"]

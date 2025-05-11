@@ -7,6 +7,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/PavelFr8/Golang-Calc/pkg/env"
 	"github.com/PavelFr8/Golang-Calc/pkg/logger"
 	"github.com/PavelFr8/Golang-Calc/pkg/tree"
 	pb "github.com/PavelFr8/Golang-Calc/proto"
@@ -108,10 +109,7 @@ func (o *Orchestrator) NewTask(expr *Expression) {
 }
 
 func (o *Orchestrator) RunGrpc() {
-	host := "localhost"
-	port := "5000"
-
-	addr := fmt.Sprintf("%s:%s", host, port)
+	addr := env.GetEnv("ORCHESTRATOR_GRPC_ADDR", "localhost:5000")
 	lis, err := net.Listen("tcp", addr)
 
 	if err != nil {
@@ -119,7 +117,7 @@ func (o *Orchestrator) RunGrpc() {
 		os.Exit(1)
 	}
 	
-	o.logger.Info("tcp listener started at port: " + port)
+	o.logger.Info("tcp listener started at address: " + addr)
 	grpcServer := grpc.NewServer()
 	pb.RegisterOrchestratorServer(grpcServer, o)
 	// запустим grpc сервер
