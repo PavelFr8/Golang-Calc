@@ -36,7 +36,7 @@ func Calc(task *pb.Task) float64 {
 func (a *Agent) Worker() {
 	defer wg.Done()
 	for {
-		task, err := a.grpcClient.GetTask(context.TODO(), nil)
+		task, err := a.GrpcClient.GetTask(context.TODO(), nil)
 		if err != nil {
 			fmt.Println("Ошибка получения задачи:", err)
 			time.Sleep(demonSleepTime)
@@ -55,7 +55,7 @@ func (a *Agent) Worker() {
 			Result: result,
 		}
 
-		if _, err := a.grpcClient.PostTask(context.TODO(), resultTask); err != nil {
+		if _, err := a.GrpcClient.PostTask(context.TODO(), resultTask); err != nil {
 			fmt.Println("Ошибка отправки результата:", err)
 		} else {
 			fmt.Printf("Задача %d выполнена, результат: %f\n", task.ID, result)

@@ -30,9 +30,10 @@ func (o *Orchestrator) CalculateHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	o.Mu.Lock()
 	defer o.Mu.Unlock()
-	exprID := o.r.GetMaxExpressionID() + 1
+	exprID := o.R.GetMaxExpressionID() + 1
 	userID, ok := GetUserID(r)
 	if !ok {
+		fmt.Println(userID)
 		http.Error(w, `{"error":"Auth fail. Refresh token"}`, http.StatusUnauthorized)
 		return
 	}
@@ -45,7 +46,7 @@ func (o *Orchestrator) CalculateHandler(w http.ResponseWriter, r *http.Request) 
 	if expr.Node.IsLeaf {
 		expr.Status = "completed"
 	}
-	o.r.CreateExpression(expr)
+	o.R.CreateExpression(expr)
 	o.Expressions[exprID] = expr
 	o.NewTask(expr)
 
@@ -135,7 +136,7 @@ func (o *Orchestrator) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"Invalid Body"}`, http.StatusUnprocessableEntity)
 		return
 	}
-	err2 := o.r.CreateUser(req.Login, req.Password)
+	err2 := o.R.CreateUser(req.Login, req.Password)
 	if err2 != nil || req.Login == "" || req.Password == "" {
 		http.Error(w, `{"error":"Invalid login or password"}`, http.StatusUnprocessableEntity)
 		return
@@ -157,7 +158,7 @@ func (o *Orchestrator) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"Invalid Body"}`, http.StatusUnprocessableEntity)
 		return
 	}
-	err2 := o.r.db.Where("login = ?", req.Login).First(&user).Error
+	err2 := o.R.DB.Where("login = ?", req.Login).First(&user).Error
 	if err2 != nil {
 		http.Error(w, `{"error":"Invalid login or password"}`, http.StatusUnprocessableEntity)
 		return

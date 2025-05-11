@@ -17,14 +17,14 @@ import (
 type Agent struct {
 	config *AgentConfig
 	logger *zap.Logger
-	grpcClient pb.OrchestratorClient
+	GrpcClient pb.OrchestratorClient
 }
 
 func New() *Agent {
 	return &Agent{
 		config: NewAgentConfig(),
 		logger: logger.SetupLogger(),
-		grpcClient: ConnectToGrpcService(),
+		GrpcClient: ConnectToGrpcService(),
 	}
 }
 

@@ -26,7 +26,7 @@ type Orchestrator struct {
 	Tasks   map[uint]*Task
 	TaskQueue   []*Task
 	Mu          sync.Mutex
-	r *Repository
+	R *Repository
 	pb.OrchestratorServer
 }
 
@@ -38,13 +38,13 @@ func New() *Orchestrator {
 		Expressions: make(map[uint]*Expression),
 		Tasks: make(map[uint]*Task),
 		TaskQueue: make([]*Task, 0),
-		r: NewRepository(InitDB()),	
+		R: NewRepository(InitDB()),	
 	}
 }
 
 func (o *Orchestrator) LoadAndQueuePendingTasks() {
     var exprs []Expression
-    err := o.r.db.Find(&exprs).Error 
+    err := o.R.DB.Find(&exprs).Error 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
             return
@@ -76,7 +76,7 @@ func (o *Orchestrator) NewTask(expr *Expression) {
 		traverse(node.Right)
 		if node.Left != nil && node.Right != nil && node.Left.IsLeaf && node.Right.IsLeaf {
 			if !node.ScheduledTask {
-				taskID := o.r.GetMaxTaskID() + 1
+				taskID := o.R.GetMaxTaskID() + 1
 				var operationTime int
 				switch node.Operator {
 				case "+":
@@ -98,7 +98,7 @@ func (o *Orchestrator) NewTask(expr *Expression) {
 					OperationTime: operationTime,
 					Node:          node,
 				}
-				o.r.CreateTask(task)
+				o.R.CreateTask(task)
 				node.ScheduledTask = true
 				o.Tasks[taskID] = task
 				o.TaskQueue = append(o.TaskQueue, task)

@@ -7,19 +7,19 @@ import (
 )
 
 type Repository struct {
-	db *gorm.DB
+	DB *gorm.DB
 }
 
 func NewRepository(db *gorm.DB) *Repository {
-	return &Repository{db: db}
+	return &Repository{DB: db}
 }
 
 func (r *Repository) CreateExpression(expr *Expression) error {
-	return r.db.Create(expr).Error
+	return r.DB.Create(expr).Error
 }
 
 func (r *Repository) CreateTask(task *Task) error {
-	return r.db.Create(task).Error
+	return r.DB.Create(task).Error
 }
 
 func (r *Repository) CreateUser(login string, password string) error {
@@ -31,12 +31,12 @@ func (r *Repository) CreateUser(login string, password string) error {
         Login: login,
         Password: hash_password,
     }
-	return r.db.Create(user).Error
+	return r.DB.Create(user).Error
 }
 
 func (r *Repository) GetMaxTaskID() uint {
     var maxIDObject Task
-    err := r.db.Order("id desc").First(&maxIDObject).Error
+    err := r.DB.Order("id desc").First(&maxIDObject).Error
     if err != nil {
         if err == gorm.ErrRecordNotFound {
             return 0 
@@ -48,7 +48,7 @@ func (r *Repository) GetMaxTaskID() uint {
 
 func (r *Repository) GetMaxExpressionID() uint {
     var maxIDObject Expression
-    err := r.db.Order("id desc").First(&maxIDObject).Error
+    err := r.DB.Order("id desc").First(&maxIDObject).Error
     if err != nil {
         if err == gorm.ErrRecordNotFound {
             return 0 

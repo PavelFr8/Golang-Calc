@@ -44,13 +44,13 @@ func (o *Orchestrator) PostTask(ctx context.Context, grpc_task *pb.TaskResult) (
 	task.Node.IsLeaf = true
 	task.Node.Value = &grpc_task.Result
 	delete(o.Tasks, uint(grpc_task.ID))
-	o.r.db.Updates(task)
+	o.R.DB.Updates(task)
 	if expr, exists := o.Expressions[task.ExprID]; exists {
 		o.NewTask(expr)
 		if expr.Node.IsLeaf {
 			expr.Status = "completed"
 			expr.Result = expr.Node.Value
-			o.r.db.Updates(expr)
+			o.R.DB.Updates(expr)
 		}
 	}
 	o.Mu.Unlock()
