@@ -36,6 +36,31 @@ func InitDB() *gorm.DB {
 	return db
 }
 
+func (o *Orchestrator) LoadAndQueuePendingTasks() {
+    var exprs []Expression
+    err := o.r.db.Find(&exprs).Error 
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+            return
+        }
+        panic("could not load expressions from DB: " + err.Error())
+    }
+
+    for i := range exprs {
+        e := &exprs[i]
+        node, err := tree.BuildNode(e.Expr)
+        if err != nil {
+            panic("FAIL TO BUILD NODE" + err.Error())
+        }
+        e.Node = node
+        o.Expressions[e.ID] = e
+		if e.Status == "pending" {
+			o.NewTask(e)
+		}
+    }
+}
+
+
 func New() *Orchestrator {
 	return &Orchestrator{
 		Config:    NewOrchestratorConfig(),
@@ -104,6 +129,8 @@ func (o *Orchestrator) RunServer() error {
     r.PathPrefix("/css/").Handler(http.StripPrefix("/css/", http.FileServer(http.Dir("web/css"))))
     r.PathPrefix("/js/").Handler(http.StripPrefix("/js/", http.FileServer(http.Dir("web/js"))))
 	r.HandleFunc("/", IndexHandler)
+
+	o.LoadAndQueuePendingTasks()
 
 	o.logger.Info(
 		"Мой любименький Оркестратор-Сервер, который сжек 50 тысяч моих нервных клеток запущен :)", 

@@ -1,19 +1,18 @@
 package orchestrator
 
 import (
-	"sync"
-
 	"github.com/PavelFr8/Golang-Calc/pkg/tree"
 )
 
 type Task struct {
-	ID            uint        `gorm:"primaryKey" json:"id"`
-	ExprID        uint        `json:"-"`
-	Arg1          float64     `json:"arg1"`
-	Arg2          float64     `json:"arg2"`
-	Operation     string      `json:"operation"`
-	OperationTime int         `json:"operation_time"`
-	Node          *tree.Node  `gorm:"-" json:"-"`
+	ID            uint         `gorm:"primaryKey" json:"id"`
+	ExprID        uint         `json:"-"`
+	Arg1          *float64     `json:"arg1"`
+	Arg2          *float64     `json:"arg2"`
+	Operation     string       `json:"operation"`
+	OperationTime int          `json:"operation_time"`
+	Result        *float64     `json:"-" gorm:"default:(-)"`
+	Node          *tree.Node   `gorm:"-" json:"-"`
 }
 
 type Expression struct {
@@ -24,9 +23,3 @@ type Expression struct {
 	Tasks    []Task      `gorm:"foreignKey:ExprID" json:"tasks,omitempty"`
 	Node     *tree.Node  `gorm:"-" json:"-"`
 }
-
-var (
-	Expressions = make(map[int]*Expression)
-	TasksQueue  []Task
-	Mutex       sync.Mutex
-)

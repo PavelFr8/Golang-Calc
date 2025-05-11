@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 
 	"github.com/PavelFr8/Golang-Calc/pkg/tree"
@@ -55,12 +56,12 @@ func (o *Orchestrator) ExpressionsHandler(w http.ResponseWriter, r *http.Request
 			if err := tree.Check(expr.Node); err != nil {
 				expr.Result = nil
 			} else {
-				expr.Result = &expr.Node.Value
+				expr.Result = expr.Node.Value
 			}
 		}
 		exprs = append(exprs, expr)
 	}
-
+	sort.Slice(exprs, func(i, j int) bool {return exprs[i].ID < exprs[j].ID})
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"expressions": exprs})
 }
@@ -76,7 +77,7 @@ func (o *Orchestrator) ExpressionByIDHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	if expr.Node != nil && expr.Node.IsLeaf {
-		expr.Result = &expr.Node.Value
+		expr.Result = expr.Node.Value
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{"expression": expr})
@@ -107,7 +108,7 @@ func (o *Orchestrator) GetTaskHandler(w http.ResponseWriter, r *http.Request) {
 func (o *Orchestrator) PostTaskHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		ID     uint  `json:"id"`
-		Result float64 `json:"result"`
+		Result *float64 `json:"result"`
 	}
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil || req.ID == 0 {
@@ -121,14 +122,16 @@ func (o *Orchestrator) PostTaskHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"Task not found"}`, http.StatusNotFound)
 		return
 	}
+	task.Result = req.Result
 	task.Node.IsLeaf = true
 	task.Node.Value = req.Result
 	delete(o.Tasks, req.ID)
+	o.r.db.Updates(task)
 	if expr, exists := o.Expressions[task.ExprID]; exists {
 		o.NewTask(expr)
 		if expr.Node.IsLeaf {
 			expr.Status = "completed"
-			expr.Result = &expr.Node.Value
+			expr.Result = expr.Node.Value
 			o.r.db.Updates(expr)
 		}
 	}

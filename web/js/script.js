@@ -42,7 +42,7 @@ $("#load-expressions").on("click", function() {
         const row = `
           <tr>
             <td>${expr.id}</td>
-            <td>${expr.expr}</td>
+            <td>${expr.expression}</td>
             <td>${expr.status}</td>
             <td>${expr.result || 'Не доступен'}</td>
           </tr>
@@ -69,7 +69,7 @@ $("#get-expression-form").on("submit", function(event) {
       const details = `
         <h4>Детали выражения</h4>
         <p><strong>ID:</strong> ${expr.id}</p>
-        <p><strong>Выражение:</strong> ${expr.expr}</p>
+        <p><strong>Выражение:</strong> ${expr.expression}</p>
         <p><strong>Статус:</strong> ${expr.status}</p>
         <p><strong>Результат:</strong> ${expr.result || 'Не доступен'}</p>
       `;

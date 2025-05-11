@@ -36,7 +36,7 @@ func FullCheck(node *Node) error {
 		}
 	}
 
-	if node.Operator == "/" && node.Right != nil && node.Right.Value == 0 {
+	if node.Operator == "/" && node.Right != nil && *node.Right.Value == 0 {
 		return ErrDivisionByZero
 	}
 

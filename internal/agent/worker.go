@@ -60,7 +60,7 @@ func Calc(task *models.Task) float64 {
 func SubmitResult(taskID uint, result float64) error {
 	resultPayload := models.TaskResult{
 		ID:     taskID,
-		Result: result,
+		Result: &result,
 	}
 	data, err := json.Marshal(resultPayload)
 	if err != nil {

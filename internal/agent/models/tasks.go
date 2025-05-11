@@ -10,5 +10,5 @@ type Task struct {
 
 type TaskResult struct {
 	ID     uint    `json:"id"`
-	Result float64 `json:"result"`
+	Result *float64 `json:"result"`
 }

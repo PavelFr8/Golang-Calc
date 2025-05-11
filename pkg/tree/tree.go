@@ -11,7 +11,7 @@ import (
 
 type Node struct {
 	IsLeaf        bool
-	Value         float64
+	Value         *float64
 	Operator      string
 	Left, Right   *Node
 	ScheduledTask bool
@@ -91,7 +91,7 @@ func (p *parser) parseElement() (*Node, error) {
 	}
 	return &Node{
 		IsLeaf: true,
-		Value:  value,
+		Value:  &value,
 	}, nil
 }
 
@@ -133,7 +133,7 @@ func (p *parser) parseSubExpr() (*Node, error) {
 		if ch == '*' || ch == '/' {
 			op := string(p.advance())
 			rightNode, err := p.parseElement()
-			if rightNode.Value == 0 && ch == '/' {
+			if *rightNode.Value == 0 && ch == '/' {
 				return nil, ErrDivisionByZero
 			}
 			if err != nil {
